@@ -1,17 +1,54 @@
 <script setup>
 
-  import { ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
   const WORD = 'Человек';
   const letters = [...WORD.toLowerCase()];
 
   const errorValue = ref(0);
-  const wrongLetters = ['a', 'и'];
+
+  const allTriedLetters = ref([]);
+  const isSameLetter = ref(false);
+  const wrongLetters = ref([]);
+  const inputLetter = ref('');
+
+  const inputRef = ref();
 
   function checkLetter() {
+    const letter = inputLetter.value.toLowerCase().trim();
+    if (!letter) return;
 
+    if (allTriedLetters.value.includes(letter)) {
+      isSameLetter.value = true;
+
+      nextTick(() => {
+        inputRef.value?.focus();
+      });
+      return;
+    }
+
+    isSameLetter.value ? isSameLetter.value = false : ''
+    allTriedLetters.value.push(letter);
+
+    if (letters.includes(letter)) {
+
+      console.log('Правильная буква:', letter);
+    } else {
+      if (wrongLetters.value.length === 0) {
+        wrongLetters.value.push(letter);
+      } else {
+        wrongLetters.value.push(`, ${letter}`);
+      }
+      errorValue.value++;
+    }
+
+    inputLetter.value = '';
+    nextTick(() => {
+      inputRef.value?.focus();
+    });
   }
 
+  const wrongLettersString = computed(() => wrongLetters.value.join(''));
 </script>
 
 <template>
@@ -42,17 +79,26 @@
           </div>
         </div>
         <div class="gallows__info-item">
-          <div class="gallows__info-txt">Ошибки ({{errorValue}}):</div>
-          <div class="gallows__info-word error">
-            <span v-for="item in wrongLetters">{{ item }}</span>
-          </div>
+          <div class="gallows__info-txt">Ошибки ({{ errorValue }}):</div>
+          <div class="gallows__info-word error">{{ wrongLettersString }}</div>
         </div>
         <div class="gallows__info-item">
           <div class="gallows__info-txt">Буква:</div>
-          <input type="text" class="gallows__info-input" maxlength="1"/>
+          <input
+            ref="inputRef"
+            v-model="inputLetter"
+            @keyup.enter="checkLetter"
+            type="text"
+            class="gallows__info-input"
+            maxlength="1"/>
+          <div v-if="isSameLetter" class="gallows__info-error">Вы уже пробовал эту букву, попробуйте другую!</div>
         </div>
 
-        <button type="button" class="btn">Проверить</button>
+        <button
+          @click="checkLetter"
+          :disabled="!inputLetter"
+          type="button"
+          class="btn">Проверить</button>
       </div>
     </div>
   </div>
@@ -86,16 +132,26 @@
       border-left: 1px solid rgba(26, 62, 77, 0.2);
 
       &-item {
+        position: relative;
         display: flex;
         align-items: center;
         grid-gap: 10px;
         font-size: 18px;
 
         &:not(:last-child) {
-          margin-bottom: 15px;
-          padding-bottom: 15px;
+          margin-bottom: 20px;
+          padding-bottom: 20px;
           border-bottom: 1px solid rgba(26, 62, 77, 0.2);
         }
+      }
+
+      &-error {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        font-weight: 700;
+        color: red;
+        font-size: 12px;
       }
 
       &-word {
@@ -166,7 +222,7 @@
     &__person {
       position: absolute;
       top: 75px;
-      left: 80px;
+      left: 73px;
 
       &-head {
         width: 60px;
@@ -233,6 +289,12 @@
       -moz-border-radius: 6px;
       border-radius: 6px;
       transition: background-color 0.2s;
+
+      &[disabled] {
+        cursor: not-allowed;
+        opacity: 0.5;
+        pointer-events: none;
+      }
 
       @media (hover: hover) {
         &:hover {
