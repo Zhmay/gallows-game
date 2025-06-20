@@ -75,7 +75,10 @@ import { computed, nextTick, ref } from 'vue'
         <div class="gallows__info-item">
           <div class="gallows__info-txt">Слово:</div>
           <div class="gallows__info-word">
-            <div v-for="letter in letters" class="gallows__info-letter">{{ letter }}</div>
+            <div v-for="letter in letters" class="gallows__info-letter">
+              <div class="back"></div>
+              <div class="front">{{ letter }}</div>
+            </div>
           </div>
         </div>
         <div class="gallows__info-item">
@@ -167,15 +170,40 @@ import { computed, nextTick, ref } from 'vue'
       &-letter {
         width: 40px;
         height: 40px;
-        -webkit-border-radius: 6px;
-        -moz-border-radius: 6px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        text-transform: uppercase;
-        border: 1px solid var(--vt-c-divider-dark-1);
+        box-shadow: 0 0 6px -4px black;
+        transition: 0.75s all;
+        transform-style: preserve-3d;
+        position: relative;
+
+        &.active {
+          transform: rotateY(180deg);
+        }
+
+        .back,
+        .front {
+          position: absolute;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          border-radius: 6px;
+          font-weight: 700;
+          inset: 0;
+          text-transform: uppercase;
+          border: 1px solid var(--vt-c-divider-dark-1);
+          overflow: hidden;
+        }
+
+        .back {
+          background-color: #f1f1f1;
+        }
+
+        .front {
+          background-color: #fff;
+          overflow: hidden;
+          transform: rotateY(180deg);
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
+        }
       }
 
       input {
