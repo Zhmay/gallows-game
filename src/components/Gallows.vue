@@ -27,16 +27,9 @@ import Popup from './Popup.vue';
   // Check if the game is over (either won or lost)
   const isGameOver = computed(() => isGameWon.value || isGameLost.value);
 
-  watch(isGameWon, (newValue) => {
-    if (newValue) {
-      console.log('ПОЗДРАВЛЯЕМ! ВЫ ВЫИГРАЛИ!');
-    }
-  });
-
-  watch(isGameLost, (newValue) => {
-    if (newValue) {
-      console.log('ИГРА ОКОНЧЕНА! ВЫ ПРОИГРАЛИ!');
-    }
+  // Reset isSameLetter if a new letter is entered
+  watch(inputLetter, () => {
+    isSameLetter.value = false;
   });
 
   function checkLetter() {
@@ -96,6 +89,19 @@ import Popup from './Popup.vue';
     }
   }
 
+  function resetGame() {
+    errorValue.value = 0;
+    allTriedLetters.value = [];
+    correctLetters.value = [];
+    wrongLetters.value = [];
+    inputLetter.value = '';
+    isSameLetter.value = false;
+
+    nextTick(() => {
+      inputRef.value?.focus();
+    });
+  }
+
   const wrongLettersString = computed(() => wrongLetters.value.join(''));
 </script>
 
@@ -141,7 +147,7 @@ import Popup from './Popup.vue';
             type="text"
             class="gallows__info-input"
             maxlength="1"/>
-          <div v-if="isSameLetter && inputLetter" class="gallows__info-error">Вы уже пробовали эту букву, попробуйте другую!</div>
+          <div v-if="isSameLetter" class="gallows__info-error">Вы уже пробовали эту букву, попробуйте другую!</div>
         </div>
 
         <button
