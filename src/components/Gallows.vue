@@ -1,6 +1,7 @@
 <script setup>
 
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import Popup from './Popup.vue';
 
   const WORD = 'Человек';
   const letters = [...WORD.toLowerCase()];
@@ -8,13 +9,39 @@ import { computed, nextTick, ref } from 'vue'
   const errorValue = ref(0);
 
   const allTriedLetters = ref([]);
+  const correctLetters = ref([]);
   const isSameLetter = ref(false);
   const wrongLetters = ref([]);
   const inputLetter = ref('');
-
   const inputRef = ref();
 
+  const MAX_ERRORS = 6;
+
+  // Computed properties to check the game status
+  const isGameLost = computed(() => errorValue.value >= MAX_ERRORS);
+  const isGameWon = computed(() => {
+    const uniqueLetters = [...new Set(letters)];
+    return uniqueLetters.every(letter => correctLetters.value.includes(letter));
+  });
+
+  // Check if the game is over (either won or lost)
+  const isGameOver = computed(() => isGameWon.value || isGameLost.value);
+
+  watch(isGameWon, (newValue) => {
+    if (newValue) {
+      console.log('ПОЗДРАВЛЯЕМ! ВЫ ВЫИГРАЛИ!');
+    }
+  });
+
+  watch(isGameLost, (newValue) => {
+    if (newValue) {
+      console.log('ИГРА ОКОНЧЕНА! ВЫ ПРОИГРАЛИ!');
+    }
+  });
+
   function checkLetter() {
+    if (isGameOver.value) return;
+
     const letter = inputLetter.value.toLowerCase().trim();
     if (!letter) return;
 
@@ -30,22 +57,43 @@ import { computed, nextTick, ref } from 'vue'
     isSameLetter.value ? isSameLetter.value = false : ''
     allTriedLetters.value.push(letter);
 
-    if (letters.includes(letter)) {
+    if (letters.includes(letter)) { // if the letter is in the word
 
-      console.log('Правильная буква:', letter);
+      if (!correctLetters.value.includes(letter)) {
+        correctLetters.value.push(letter); // add the letter to the list of correct letters
+      }
+
+      letters.forEach((item, index) => {
+        if (item === letter) {
+          const letterElement = document.querySelector(`.gallows__info-letter:nth-child(${index + 1})`);
+          if (letterElement) {
+            letterElement.classList.add('active');
+          }
+        }
+      });
+      
     } else {
+
       if (wrongLetters.value.length === 0) {
         wrongLetters.value.push(letter);
       } else {
         wrongLetters.value.push(`, ${letter}`);
       }
+
       errorValue.value++;
     }
 
     inputLetter.value = '';
-    nextTick(() => {
-      inputRef.value?.focus();
-    });
+
+    if (!isGameOver.value) {        
+      nextTick(() => {
+        inputRef.value?.focus();
+      });
+    } else {
+      nextTick(() => {
+        inputRef.value?.blur();
+      });
+    }
   }
 
   const wrongLettersString = computed(() => wrongLetters.value.join(''));
@@ -62,7 +110,6 @@ import { computed, nextTick, ref } from 'vue'
           <div class="gallows__picture-block three"></div>
         </div>
         <div class="gallows__person">
-
           <div v-if="errorValue >= 1" class="gallows__person-head"></div>
           <div v-if="errorValue >= 2" class="gallows__person-body"></div>
           <div v-if="errorValue >= 3" class="gallows__person-hand left"></div>
@@ -82,7 +129,7 @@ import { computed, nextTick, ref } from 'vue'
           </div>
         </div>
         <div class="gallows__info-item">
-          <div class="gallows__info-txt">Ошибки ({{ errorValue }}):</div>
+          <div class="gallows__info-txt">Ошибки ({{ errorValue }} / {{ MAX_ERRORS }}):</div>
           <div class="gallows__info-word error">{{ wrongLettersString }}</div>
         </div>
         <div class="gallows__info-item">
@@ -94,7 +141,7 @@ import { computed, nextTick, ref } from 'vue'
             type="text"
             class="gallows__info-input"
             maxlength="1"/>
-          <div v-if="isSameLetter" class="gallows__info-error">Вы уже пробовал эту букву, попробуйте другую!</div>
+          <div v-if="isSameLetter && inputLetter" class="gallows__info-error">Вы уже пробовали эту букву, попробуйте другую!</div>
         </div>
 
         <button
@@ -105,6 +152,13 @@ import { computed, nextTick, ref } from 'vue'
       </div>
     </div>
   </div>
+
+  <Popup 
+    v-if="isGameOver"
+    :isGameOver="isGameOver" 
+    :isGameWon="isGameWon" 
+    :WORD="WORD"
+  />
 </template>
 
 <style scoped lang="scss">
@@ -301,32 +355,6 @@ import { computed, nextTick, ref } from 'vue'
         &.right {
           right: -7px;
           transform: rotate(-45deg);
-        }
-      }
-    }
-
-    .btn {
-      font: inherit;
-      border: none;
-      background-color: var(--vt-c-black);
-      color: var(--vt-c-white);
-      font-weight: 700;
-      padding: 10px 16px;
-      cursor: pointer;
-      -webkit-border-radius: 6px;
-      -moz-border-radius: 6px;
-      border-radius: 6px;
-      transition: background-color 0.2s;
-
-      &[disabled] {
-        cursor: not-allowed;
-        opacity: 0.5;
-        pointer-events: none;
-      }
-
-      @media (hover: hover) {
-        &:hover {
-          background-color: hsl(162, 93%, 40%);
         }
       }
     }
