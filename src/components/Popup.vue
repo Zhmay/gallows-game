@@ -1,4 +1,6 @@
 <script setup>
+	const emit = defineEmits(['resetGame']);
+
 	defineProps({
 		isGameOver: Boolean,
 		isGameWon: Boolean,
@@ -9,22 +11,22 @@
 <template>
     <div class="overlay"></div>
     <div class="popup" :class="isGameWon ? 'win' : 'lose'">
-			<template v-if="isGameWon">
-				<div class="popup__confetti left">
-					<img src="@/assets/img/confetti.png" alt="decor">
-				</div>
-				<div class="popup__title">
-					<span>Win!</span>
-				</div>
-				<div class="popup__confetti right">
-					<img src="@/assets/img/confetti.png" alt="decor">
-				</div>
-			</template>
-      <div class="popup__content">
-        <h2>{{ isGameOver ? (isGameWon ? 'Поздравляем, вы выиграли!' : 'К сожалению, вы проиграли.') : '' }}</h2>
-        <p v-if="isGameOver">Загаданное слово: <b>{{ WORD }}</b></p>
-        <button class="btn">Начать заново</button>
-      </div>
+		<template v-if="isGameWon">
+			<div class="popup__confetti left">
+				<img src="@/assets/img/confetti.png" alt="decor">
+			</div>
+			<div class="popup__title">
+				<span>Win!</span>
+			</div>
+			<div class="popup__confetti right">
+				<img src="@/assets/img/confetti.png" alt="decor">
+			</div>
+		</template>
+		<div class="popup__content">
+			<h2>{{ isGameOver ? (isGameWon ? 'Поздравляем, вы выиграли!' : 'К сожалению, вы проиграли.') : '' }}</h2>
+			<p v-if="isGameOver">Загаданное слово: <b>{{ WORD }}</b></p>
+			<button class="btn" @click="emit('resetGame')">Начать заново</button>
+		</div>
     </div>
 </template>
 

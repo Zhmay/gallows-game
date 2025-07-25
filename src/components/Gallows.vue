@@ -1,7 +1,8 @@
 <script setup>
 
-import { computed, nextTick, ref, watch } from 'vue'
-import Popup from './Popup.vue';
+import { computed, nextTick, ref, watch, onMounted } from 'vue'
+import Popup from './Popup.vue'
+import { useAudio } from '@/composables/useAudio'
 
   const WORD = 'Человек';
   const letters = [...WORD.toLowerCase()];
@@ -17,6 +18,13 @@ import Popup from './Popup.vue';
 
   const MAX_ERRORS = 6;
 
+  const audio = useAudio();
+
+  // Computed property to reveal letters
+  const revealedLetters = computed(() => {
+    return letters.map(letter => correctLetters.value.includes(letter));
+  });
+
   // Computed properties to check the game status
   const isGameLost = computed(() => errorValue.value >= MAX_ERRORS);
   const isGameWon = computed(() => {
@@ -27,10 +35,38 @@ import Popup from './Popup.vue';
   // Check if the game is over (either won or lost)
   const isGameOver = computed(() => isGameWon.value || isGameLost.value);
 
+  // Следим за состоянием игры для воспроизведения звуков
+  watch(isGameLost, (newValue) => {
+    if (newValue) {
+      audio.stopAllMusic() // Останавливаем фоновую музыку
+
+      setTimeout(() => {
+        audio.play('gameOver')
+      }, 400);
+    }
+  })
+
+  watch(isGameWon, (newValue) => {
+    if (newValue) {
+      audio.stopAllMusic() // Останавливаем фоновую музыку
+      audio.play('victory')
+    }
+  })
+
   // Reset isSameLetter if a new letter is entered
   watch(inputLetter, () => {
     isSameLetter.value = false;
   });
+
+  // Инициализация при монтировании
+  onMounted(() => {
+    audio.initAudio()
+    
+    // Запускаем фоновую музыку с небольшой задержкой
+    setTimeout(() => {
+      audio.play('backgroundMusic')
+    }, 1000)
+  })
 
   function checkLetter() {
     if (isGameOver.value) return;
@@ -52,6 +88,9 @@ import Popup from './Popup.vue';
 
     if (letters.includes(letter)) { // if the letter is in the word
 
+      // Звук правильной буквы
+      audio.play('correctLetter')
+
       if (!correctLetters.value.includes(letter)) {
         correctLetters.value.push(letter); // add the letter to the list of correct letters
       }
@@ -66,6 +105,9 @@ import Popup from './Popup.vue';
       });
       
     } else {
+
+      // Звук неправильной буквы
+      audio.play('wrongLetter')
 
       if (wrongLetters.value.length === 0) {
         wrongLetters.value.push(letter);
@@ -97,9 +139,10 @@ import Popup from './Popup.vue';
     inputLetter.value = '';
     isSameLetter.value = false;
 
-    nextTick(() => {
-      inputRef.value?.focus();
-    });
+    // Перезапускаем фоновую музыку
+    setTimeout(() => {
+      audio.play('backgroundMusic')
+    }, 500)
   }
 
   const wrongLettersString = computed(() => wrongLetters.value.join(''));
@@ -107,6 +150,43 @@ import Popup from './Popup.vue';
 
 <template>
   <div class="gallows">
+    <!-- Панель управления звуком -->
+    <div class="audio-controls">
+      <button 
+        @click="audio.toggleAudio()" 
+        class="audio-toggle"
+        :class="{ muted: !audio.isAudioEnabled.value }"
+      >
+        {{ audio.isAudioEnabled.value ? '🔊' : '🔇' }}
+      </button>
+      
+      <!-- Слайдеры громкости (можно скрыть/показать) -->
+      <div class="volume-controls" v-if="audio.isAudioEnabled.value">
+        <div class="volume-control">
+          <label>Музыка:</label>
+          <input 
+            type="range" 
+            min="0" 
+            max="1" 
+            step="0.1"
+            :value="audio.musicVolume.value"
+            @input="audio.setMusicVolume($event.target.value)"
+          >
+        </div>
+        <div class="volume-control">
+          <label>Звуки:</label>
+          <input 
+            type="range" 
+            min="0" 
+            max="1" 
+            step="0.1"
+            :value="audio.sfxVolume.value"
+            @input="audio.setSfxVolume($event.target.value)"
+          >
+        </div>
+      </div>
+    </div>
+
     <h1>Виселица!</h1>
     <div class="gallows__holder">
       <div class="gallows__picture">
@@ -128,7 +208,12 @@ import Popup from './Popup.vue';
         <div class="gallows__info-item">
           <div class="gallows__info-txt">Слово:</div>
           <div class="gallows__info-word">
-            <div v-for="letter in letters" class="gallows__info-letter">
+            <div 
+              v-for="(letter, index) in letters" 
+              :key="index"
+              class="gallows__info-letter"
+              :class="{ active: revealedLetters[index] }"
+            >
               <div class="back"></div>
               <div class="front">{{ letter }}</div>
             </div>
@@ -164,6 +249,7 @@ import Popup from './Popup.vue';
     :isGameOver="isGameOver" 
     :isGameWon="isGameWon" 
     :WORD="WORD"
+    @resetGame="resetGame"
   />
 </template>
 
@@ -363,6 +449,52 @@ import Popup from './Popup.vue';
           transform: rotate(-45deg);
         }
       }
+    }
+
+    .audio-controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .audio-toggle {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 5px;
+    }
+
+    .audio-toggle.muted {
+      opacity: 0.5;
+    }
+
+    .volume-controls {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 150px;
+    }
+
+    .volume-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .volume-control label {
+      min-width: 50px;
+    }
+
+    .volume-control input[type="range"] {
+      flex: 1;
     }
   }
 </style>
